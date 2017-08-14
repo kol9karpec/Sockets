@@ -3,8 +3,10 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <string.h>
 #include <unistd.h>
+#include <assert.h>
 
 #define DEF_PORT 4500
 #define DEF_BACKLOG 10
@@ -18,13 +20,10 @@ int main(int argc, char * argv[]) {
 		return -1;
 	}
 
-	//This is server, so we need to bind port to our program
-	//For binding we are need to create struct sockaddr_in
-
 	struct sockaddr_in server_addr = {
 		.sin_family = AF_INET,
 		.sin_port = htons(DEF_PORT),
-		.sin_addr.s_addr = INADDR_ANY,
+		.sin_addr.s_addr = INADDR_ANY
 	}; //server_addr
 
 	if(bind(socket_fd,
@@ -39,11 +38,11 @@ int main(int argc, char * argv[]) {
 		return -1;
 	}
 
-	struct sockaddr_in client;
-	socklen_t addrlen = sizeof(client);
+	//struct sockaddr_in client;
+	//socklen_t addrlen = sizeof(client);
 	int client_fd = 0;
 
-	client_fd = accept(socket_fd,(struct sockaddr *)&client,&addrlen);
+	client_fd = accept(socket_fd,/*(struct sockaddr *)&client*/NULL,NULL);
 
 	if(client_fd < 0) {
 		perror("Accept error!");
@@ -51,6 +50,8 @@ int main(int argc, char * argv[]) {
 	}
 
 	printf("Client connected!\n");
+	//printf("Address: %s\n",inet_ntoa(client.sin_addr));
+	//printf("Port: %u\n",client.sin_port);
 
 	unsigned char buffer[DEF_BUFSIZE];
 	memset(&buffer,'\0',DEF_BUFSIZE);
@@ -58,8 +59,7 @@ int main(int argc, char * argv[]) {
 	int n = read(client_fd,buffer,DEF_BUFSIZE-1);
 
 	printf("Number of bytes read: %d\n",n);
-
-	printf("Server has got a message: %s\n",buffer);
+	printf("Data: %s\n",buffer);
 
 	close(socket_fd);
 
