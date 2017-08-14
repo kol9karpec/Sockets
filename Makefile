@@ -1,15 +1,23 @@
 CC = gcc
-CFLAGS = --std=c99 -Wall -Werror -pedantic
+CFLAGS = -Wall -Werror 
 
-OBJS = server.o
+SERVER_OBJS = server.o
+CLIENT_OBJS = client.o
 
-all: app.out
+all: server.out client.out
 
-app.out: $(OBJS) 
+server.out: $(SERVER_OBJS) 
+	@$(CC) $? -o $@
+
+client.out: $(CLIENT_OBJS)
 	@$(CC) $? -o $@
 
 %.o: %.c
 	@$(CC) -c $(CFLAGS) -o $@ $?
 
 clean:
-	@rm -f $(OBJS) app.out
+	@rm -f $(SERVER_OBJS) $(CLIENT_OBJS) app.out
+
+message:
+	./server.out &
+	./client.out
