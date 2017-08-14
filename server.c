@@ -23,13 +23,13 @@ int main(int argc, char * argv[]) {
 
 	struct sockaddr_in server_addr = {
 		.sin_family = AF_INET,
-		.sin_port = DEF_PORT,
+		.sin_port = htons(DEF_PORT),
 		.sin_addr.s_addr = INADDR_ANY,
 	}; //server_addr
 
 	if(bind(socket_fd,
 			(struct sockaddr *)(&server_addr),
-			sizeof(struct sockaddr))) {
+			sizeof(server_addr))) {
 		perror("Binding error!\n");
 		return -1;
 	}
@@ -39,16 +39,26 @@ int main(int argc, char * argv[]) {
 		return -1;
 	}
 
-	struct sockaddr client;
+	struct sockaddr_in client;
+	socklen_t addrlen = sizeof(client);
 	int client_fd = 0;
 
-	client_fd = accept(socket_fd,&client,NULL);
+	client_fd = accept(socket_fd,(struct sockaddr *)&client,&addrlen);
+
+	if(client_fd < 0) {
+		perror("Accept error!");
+		return -1;
+	}
+
 	printf("Client connected!\n");
 
 	unsigned char buffer[DEF_BUFSIZE];
 	memset(&buffer,'\0',DEF_BUFSIZE);
 
-	read(client_fd,&buffer,DEF_BUFSIZE-1);
+	int n = read(client_fd,buffer,DEF_BUFSIZE-1);
+
+	printf("Number of bytes read: %d\n",n);
+
 	printf("Server has got a message: %s\n",buffer);
 
 	close(socket_fd);

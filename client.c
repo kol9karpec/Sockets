@@ -20,7 +20,7 @@ int main(int argc, char * argv[]) {
 
 	struct sockaddr_in server_addr = {
 		.sin_family = AF_INET,
-		.sin_port = DEF_PORT,
+		.sin_port = htons(DEF_PORT),
 		.sin_addr.s_addr = INADDR_ANY
 	}; //server_addr
 
@@ -32,7 +32,10 @@ int main(int argc, char * argv[]) {
 	}
 
 	const char message[] = "Message from client!";
-	write(socket_fd,message,strlen(message));
+	int n = 0;
+	n = write(socket_fd,message,strlen(message)+1);
+
+	printf("Number of bytes written: %d\n",n);
 
 	close(socket_fd);
 
