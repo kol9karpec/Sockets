@@ -21,7 +21,7 @@ TCP_server_start(const char * inaddr,
 
 	struct sockaddr_in server_addr = {
 		.sin_family = AF_INET,
-		.sin_port = htons(DEF_PORT),
+		.sin_port = htons(port),
 		.sin_addr.s_addr = ip
 	}; //server_addr
 
@@ -42,8 +42,9 @@ TCP_server_start(const char * inaddr,
 	socklen_t client_addr_len = 0;
 
 	signal(SIGINT,sigint_handler);
+	pthread_mutex_init(&output_lock,NULL);
 
-	while(1) {
+	while(clients_count < MAX_CLIENTS) {
 		client_fd[clients_count] = accept(socket_fd,
 						(struct sockaddr *)(&client_addr),
 						&client_addr_len);
@@ -64,10 +65,18 @@ TCP_server_start(const char * inaddr,
 
 		clients_count++;
 	}
+
+	unsigned int i = 0;
+	for(i=0;i<MAX_CLIENTS;i++) {
+		pthread_join(client_threads[i],NULL);
+	}
+
+	return 0;
 }
 
 //return value - client's file descriptor
-int TCP_client_start(const char * server_ip_addr,
+int
+TCP_client_start(const char * server_ip_addr,
 				unsigned short int server_port) {
 
 	int socket_fd = socket(AF_INET,SOCK_STREAM,0);
@@ -79,48 +88,57 @@ int TCP_client_start(const char * server_ip_addr,
 
 	struct sockaddr_in server_addr = {
 		.sin_family = AF_INET,
-		.sin_port = htons(DEF_PORT),
+		.sin_port = htons(server_port),
 		.sin_addr.s_addr = inet_addr(server_ip_addr)
 	}; //server_addr
 
 	if(connect(socket_fd,
 				(struct sockaddr *)(&server_addr),
-				sizeof(struct sockaddr))) {
-		perror("Connecting error!");
+				sizeof(server_addr))) {
+		perror("connect() failed");
 		return -1;
 	}
 
-	const char message[] = "Message from client!";
-	int n = 0;
-	n = write(socket_fd,message,strlen(message)+1);
+	char buffer[DEF_BUFSIZE] = {0};
+	int n_bytes = 0;
 
-	printf("Number of bytes written: %d\n",n);
-
-	close(socket_fd);
-
-
+	while(1) {
+		scanf("%s",buffer);
+		n_bytes = write(socket_fd,buffer,strlen(buffer)+1);
+		if(n_bytes <= 0) {
+			perror("write() failed");
+			close(socket_fd);
+			return -1;
+		}
+	}
 
 	return 0;
 }
 
 
-void* client_handler(void * arg) {
+void *
+client_handler(void * arg) {
 	int client_fd = *((int*)(arg));
 	char buffer[DEF_BUFSIZE] = {0};
-	while(1) {
-		bzero(buffer,sizeof(buffer));
-		read(client_fd,buffer,sizeof(buffer));
+	int n_of_bytes = 0;
+
+	while((n_of_bytes = read(client_fd,buffer,sizeof(buffer))) > 0) {
+				bzero(buffer,sizeof(buffer));
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,NULL);
-		//Handling buffer...
+		//Handling buffer
+
+		pthread_mutex_lock(&output_lock);
 		printf("Submitted data: %s\n",buffer);
+		pthread_mutex_unlock(&output_lock);
+
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,NULL);
 	}
 
-	//Not reachable
-	return NULL;
+	pthread_exit(NULL);
 }
 
-void sigint_handler(int server_sock) {
+void
+sigint_handler(int server_sock) {
 	close(server_sock);
 
 	unsigned int i = 0;

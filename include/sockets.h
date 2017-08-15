@@ -18,8 +18,10 @@
 
 pthread_t client_threads[MAX_CLIENTS] = {0};
 
-volatile unsigned char clients_count = 0;
+pthread_mutex_t output_lock = PTHREAD_MUTEX_INITIALIZER;
+//pthread_mutex_init(&output_lock,NULL);
 
+volatile unsigned char clients_count = 0;
 //return value 0/-1
 int TCP_server_start(const char * inaddr,
 					unsigned short int port);
