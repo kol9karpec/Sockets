@@ -7,11 +7,17 @@
 #include <netinet/in.h> //sockaddr(_in), in_addr
 #include <string.h> //strlen, bzero, memset
 #include <unistd.h> //system calls
-#include <assert.h> //maybe will be used
+#include <pthread.h>
+#include <signal.h>
 
 #define DEF_PORT 4500
 #define DEF_BACKLOG 10
 #define DEF_BUFSIZE 256
+#define MAX_CLIENTS 5
+
+pthread_t client_threads[MAX_CLIENTS] = {0};
+
+volatile unsigned char clients_count = 0;
 
 //return value 0/-1
 int TCP_server_start(struct in_addr inaddr,
@@ -21,37 +27,6 @@ int TCP_server_start(struct in_addr inaddr,
 int TCP_client_start(const char * server_ip_addr,
 				unsigned short int server_port);
 
-void client_handler(void * argument,...);
+void client_handler(void * arg);
 
-int main(int argc, char * argv[]) {
-	int socket_fd = socket(AF_INET,SOCK_STREAM,0); //syscall to create socket
-
-	if(socket_fd == -1) {
-		printf("Socket creating failed!\n");
-		return -1;
-	}
-
-	struct sockaddr_in server_addr = {
-		.sin_family = AF_INET,
-		.sin_port = htons(DEF_PORT),
-		.sin_addr.s_addr = INADDR_ANY
-	}; //server_addr
-
-	if(connect(socket_fd,
-				(struct sockaddr *)(&server_addr),
-				sizeof(struct sockaddr))) {
-		perror("Connecting error!");
-		return -1;
-	}
-
-	const char message[] = "Message from client!";
-	int n = 0;
-	n = write(socket_fd,message,strlen(message)+1);
-
-	printf("Number of bytes written: %d\n",n);
-
-	close(socket_fd);
-
-
-	return 0;
-}
+void sigint_handler(int server_sock);
