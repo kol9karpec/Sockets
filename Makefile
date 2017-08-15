@@ -4,29 +4,32 @@ CFLAGS = -Wall -Werror
 SERVER_OBJS = server.o
 CLIENT_OBJS = client.o
 
-TEST_OBJS = ./src/sockets.o
-TEST_HEADERS = ./headers/sockets.h
+OTHER_OBJS = ./src/sockets.o
 
-all: server.out client.out
+OBJS = ./src/sockets.o \
+	   server.o \
+	   client.o
 
-server.out: $(SERVER_OBJS) 
+HEADERS = ./include/sockets.h
+
+all: server.out client.out 
+
+server.out: $(SERVER_OBJS) $(OTHER_OBJS) $(HEADERS) 
 	@$(CC) $? -o $@
 
-client.out: $(CLIENT_OBJS)
+client.out: $(CLIENT_OBJS) $(OTHER_OBJS) $(HEADERS)
 	@$(CC) $? -o $@
 
 %.o: %.c
 	@$(CC) -c $(CFLAGS) -o $@ $?
 
 clean:
-	@rm -f $(SERVER_OBJS) $(CLIENT_OBJS) app.out
+	@rm -f *.out
 
 message:
 	./server.out &
 	./client.out
 
-.PHONY: clean test_compile
+$(HEADERS):
 
-test_compile: $(TEST_OBJS) $(TEST_HEADERS)
-
-$(TEST_HEADERS):
+.PHONY: clean 
