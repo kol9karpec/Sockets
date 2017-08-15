@@ -130,7 +130,7 @@ client_handler(void * arg) {
 	int n_of_bytes = 0;
 
 	while((n_of_bytes = read(client_fd,buffer,sizeof(buffer))) > 0) {
-				bzero(buffer,sizeof(buffer));
+		bzero(buffer,sizeof(buffer));
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,NULL);
 		//Handling buffer
 

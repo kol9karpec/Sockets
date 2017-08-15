@@ -3,28 +3,21 @@ CFLAGS = -Wall -Werror
 
 SERVER_OBJS = server.o
 CLIENT_OBJS = client.o
-
-OTHER_OBJS = ./src/sockets.o
-
-OBJS = ./src/sockets.o \
-	   server.o \
-	   client.o
+COMMON_OBJS = ./src/sockets.o
 
 HEADERS = ./include/sockets.h
+LDLIBS = -lpthread
 
 all: server.out client.out 
 
-server.out: $(SERVER_OBJS) $(OTHER_OBJS) $(HEADERS) 
-	@$(CC) $? -o $@
+server.out: $(COMMON_OBJS) $(HEADERS) $(SERVER_OBJS) 
+client.out: $(COMMON_OBJS) $(HEADERS) $(CLIENT_OBJS) 
 
-client.out: $(CLIENT_OBJS) $(OTHER_OBJS) $(HEADERS)
-	@$(CC) $? -o $@
-
-%.o: %.c
-	@$(CC) -c $(CFLAGS) -o $@ $?
+server.out client.out:
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@ 
 
 clean:
-	@rm -f *.out
+	@rm -f *.out $(SERVER_OBJS) $(CLIENT_OBJS) $(COMMON_OBJS)
 
 message:
 	./server.out &
@@ -32,4 +25,4 @@ message:
 
 $(HEADERS):
 
-.PHONY: clean 
+.PHONY: clean all message
