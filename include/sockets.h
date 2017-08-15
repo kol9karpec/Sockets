@@ -9,6 +9,7 @@
 #include <unistd.h> //system calls
 #include <pthread.h>
 #include <signal.h>
+#include <arpa/inet.h> //inet_addr()
 
 #define DEF_PORT 4500
 #define DEF_BACKLOG 10
@@ -20,13 +21,13 @@ pthread_t client_threads[MAX_CLIENTS] = {0};
 volatile unsigned char clients_count = 0;
 
 //return value 0/-1
-int TCP_server_start(struct in_addr inaddr,
+int TCP_server_start(const char * inaddr,
 					unsigned short int port);
 
 //return value - client's file descriptor
 int TCP_client_start(const char * server_ip_addr,
 				unsigned short int server_port);
 
-void client_handler(void * arg);
+void* client_handler(void * arg);
 
 void sigint_handler(int server_sock);
