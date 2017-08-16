@@ -51,7 +51,7 @@ TCP_server_start(const char * inaddr,
 	signal(SIGINT,sigint_handler);
 	pthread_mutex_init(&output_lock,NULL);
 
-	while(clients_count < MAX_CLIENTS) {
+	while(1) {
 		client_fd[clients_count] = accept(socket_fd,
 						(struct sockaddr *)(&client_addr),
 						&client_addr_len);
@@ -107,15 +107,20 @@ TCP_client_start(const char * server_ip_addr,
 	}
 
 	char buffer[DEF_BUFSIZE] = {0};
+	//memset(buffer,'\0',sizeof(buffer));
 	int n_bytes = 0;
 
 	while(1) {
 		scanf("%s",buffer);
-		n_bytes = write(socket_fd,buffer,strlen(buffer)+1);
+		//fgets(buffer,sizeof(buffer),stdin);
+		n_bytes = write(socket_fd,buffer,sizeof(buffer));
 		if(n_bytes <= 0) {
 			perror("write() failed");
 			close(socket_fd);
 			return -1;
+		}
+		if(!strcmp(buffer,"close")) {
+			break;
 		}
 	}
 
@@ -127,10 +132,10 @@ void *
 client_handler(void * arg) {
 	int client_fd = *((int*)(arg));
 	char buffer[DEF_BUFSIZE] = {0};
+	//memset(buffer,'\0',sizeof(buffer));
 	int n_of_bytes = 0;
 
 	while((n_of_bytes = read(client_fd,buffer,sizeof(buffer))) > 0) {
-		bzero(buffer,sizeof(buffer));
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,NULL);
 		//Handling buffer
 
@@ -138,9 +143,15 @@ client_handler(void * arg) {
 		printf("Submitted data: %s\n",buffer);
 		pthread_mutex_unlock(&output_lock);
 
+		if(!strcmp(buffer,"close")) {
+			break;
+		}
+
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,NULL);
+		memset(buffer,'\0',sizeof(buffer));
 	}
 
+	close(client_fd);
 	pthread_exit(NULL);
 }
 

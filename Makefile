@@ -21,7 +21,7 @@ clean:
 
 message:
 	./server.out &
-	./client.out
+	./client.out 
 
 $(HEADERS):
 
