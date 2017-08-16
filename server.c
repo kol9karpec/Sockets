@@ -1,7 +1,5 @@
-#include "./include/sockets.h"
+#include "./include/tcp_sockets.h"
 
 int main(int argc, char * argv[]) {
-	TCP_server_start("0.0.0.0",4500);
-
-	return 0;
+	return TCP_server_start("0.0.0.0",4500);
 }

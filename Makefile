@@ -3,9 +3,9 @@ CFLAGS = -Wall -Werror -pthread -D_GNU_SOURCE
 
 SERVER_OBJS = server.o
 CLIENT_OBJS = client.o
-COMMON_OBJS = ./src/sockets.o
+COMMON_OBJS = ./src/tcp_sockets.o
 
-HEADERS = ./include/sockets.h
+HEADERS = ./include/tcp_sockets.h
 LDFLAGS = -pthread
 
 all: server.out client.out 
