@@ -1,12 +1,12 @@
 CC = gcc
-CFLAGS = -Wall -Werror 
+CFLAGS = -Wall -Werror -pthread -D_GNU_SOURCE
 
 SERVER_OBJS = server.o
 CLIENT_OBJS = client.o
 COMMON_OBJS = ./src/sockets.o
 
 HEADERS = ./include/sockets.h
-LDLIBS = -lpthread
+LDFLAGS = -pthread
 
 all: server.out client.out 
 

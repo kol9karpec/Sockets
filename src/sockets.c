@@ -12,7 +12,10 @@ static void set_def_client_fd();
 
 static int get_free_client_slot();
 
-static int join_client(int slot_number);
+static pthread_t clients_checker_thread = 0;
+static void* clients_checker(void * arg);
+
+static int join_client(int slot_number, int client_socket_fd);
 
 //return value 0/-1
 int
@@ -56,27 +59,27 @@ TCP_server_start(const char * inaddr,
 	for(i=0;i<MAX_CLIENTS;i++) {
 		client_fd[i] = -1;
 	}
+
 	signal(SIGINT,sigint_handler);
 	pthread_mutex_init(&output_lock,NULL);
 
+	set_def_client_fd();
+	pthread_create(&clients_checker_thread,
+					NULL,
+					clients_checker,
+					NULL);
+
 	while(1) {
-		if(clients_count == MAX_CLIENTS) {
-			for(i=0;i<clients_count;i++)
-				if(!pthread_tryjoin_np(client_threads[i],NULL))
-					client_fd[i] = -1;
-
-		}
-
 		int slot_number = get_free_client_slot();
 
 		if(slot_number >= 0)
-			client_join(slot_number);
+			join_client(slot_number,socket_fd);
 	}
 
-	unsigned int i = 0;
 	for(i=0;i<MAX_CLIENTS;i++) {
 			pthread_join(client_threads[i],NULL);
-		}
+	}
+
 	return 0;
 }
 
@@ -186,11 +189,11 @@ int get_free_client_slot() {
 	return result;
 }
 
-static int join_client(int slot_number) {
-	struct sockaddr_in client_addr;
+static int join_client(int slot_number, int client_socket_fd) {
+	struct sockaddr_in  client_addr;
 	socklen_t client_addr_len = 0;
 
-	client_fd[slot_number] = accept(socket_fd,
+	client_fd[slot_number] = accept(client_socket_fd,
 			(struct sockaddr *)(&client_addr),
 			&client_addr_len);
 
@@ -209,4 +212,24 @@ static int join_client(int slot_number) {
 			&client_fd[slot_number]); //void *arg
 
 	clients_count++;
+
+	return 0;
+}
+
+static void* clients_checker(void * arg) {
+	unsigned int i = 0;
+	while(1) {
+		for(i=0;i<MAX_CLIENTS;i++) {
+			if((client_fd[i] != -1) && \
+					!pthread_tryjoin_np(client_threads[i],NULL)) {
+				printf("Client %d unjoined!\n",i);
+				client_fd[i] = -1;
+			}
+		}
+
+		//printf("checker works!\n");
+		sleep(1);
+	}
+
+	return NULL;
 }
