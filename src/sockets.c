@@ -6,6 +6,13 @@ pthread_mutex_t output_lock = PTHREAD_MUTEX_INITIALIZER;
 
 volatile unsigned char clients_count = 0;
 
+static int client_fd[MAX_CLIENTS];
+
+static void set_def_client_fd();
+
+static int get_free_client_slot();
+
+static int join_client(int slot_number);
 
 //return value 0/-1
 int
@@ -44,40 +51,32 @@ TCP_server_start(const char * inaddr,
 		return -1;
 	}
 
-	int client_fd[MAX_CLIENTS] = {0};
-	struct sockaddr_in client_addr;
-	socklen_t client_addr_len = 0;
+	unsigned int i = 0;
 
+	for(i=0;i<MAX_CLIENTS;i++) {
+		client_fd[i] = -1;
+	}
 	signal(SIGINT,sigint_handler);
 	pthread_mutex_init(&output_lock,NULL);
 
 	while(1) {
-		client_fd[clients_count] = accept(socket_fd,
-						(struct sockaddr *)(&client_addr),
-						&client_addr_len);
+		if(clients_count == MAX_CLIENTS) {
+			for(i=0;i<clients_count;i++)
+				if(!pthread_tryjoin_np(client_threads[i],NULL))
+					client_fd[i] = -1;
 
-		if(client_fd[clients_count] < 0) {
-			perror("Accept error!");
-			return -1;
 		}
 
-		printf("New client: %s:%u\n",
-				inet_ntoa(client_addr.sin_addr),
-				ntohs(client_addr.sin_port));
+		int slot_number = get_free_client_slot();
 
-		pthread_create(&client_threads[clients_count], //pthread * thread
-						NULL, //const pthread_attr_t *attr
-						client_handler, //void *(*start_routine) (void * arg)
-						&client_fd[clients_count]); //void *arg
-
-		clients_count++;
+		if(slot_number >= 0)
+			client_join(slot_number);
 	}
 
 	unsigned int i = 0;
 	for(i=0;i<MAX_CLIENTS;i++) {
-		pthread_join(client_threads[i],NULL);
-	}
-
+			pthread_join(client_threads[i],NULL);
+		}
 	return 0;
 }
 
@@ -165,4 +164,49 @@ sigint_handler(int server_sock) {
 	}
 
 	exit(0);
+}
+
+static void set_def_client_fd() {
+	unsigned int i = 0;
+	for(;i<MAX_CLIENTS;i++)
+		client_fd[i] = -1;
+}
+
+
+int get_free_client_slot() {
+	int result = -1;
+	int i = 0;
+
+	for(;i<MAX_CLIENTS;i++) {
+		if(client_fd[i] == -1) {
+			result = i;
+			break;
+		}
+	}
+	return result;
+}
+
+static int join_client(int slot_number) {
+	struct sockaddr_in client_addr;
+	socklen_t client_addr_len = 0;
+
+	client_fd[slot_number] = accept(socket_fd,
+			(struct sockaddr *)(&client_addr),
+			&client_addr_len);
+
+	if(client_fd[slot_number] < 0) {
+		perror("Accept error!");
+		return -1;
+	}
+
+	printf("New client: %s:%u\n",
+			inet_ntoa(client_addr.sin_addr),
+			ntohs(client_addr.sin_port));
+
+	pthread_create(&client_threads[slot_number], //pthread * thread
+			NULL, //const pthread_attr_t *attr
+			client_handler, //void *(*start_routine) (void * arg)
+			&client_fd[slot_number]); //void *arg
+
+	clients_count++;
 }

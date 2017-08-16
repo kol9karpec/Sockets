@@ -25,6 +25,7 @@ extern pthread_mutex_t output_lock;
 //pthread_mutex_init(&output_lock,NULL);
 
 extern volatile unsigned char clients_count;
+
 //return value 0/-1
 int TCP_server_start(const char * inaddr,
 					unsigned short int port);
