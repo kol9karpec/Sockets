@@ -1,7 +1,7 @@
 #include "./include/sockets.h"
 
 int main(int argc, char * argv[]) {
-	TCP_client_start("172.22.29.21",4500);
+	TCP_client_start("0.0.0.0",4500);
 
 
 

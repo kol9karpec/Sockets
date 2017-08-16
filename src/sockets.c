@@ -15,7 +15,7 @@ static int get_free_client_slot();
 static pthread_t clients_checker_thread = 0;
 static void* clients_checker(void * arg);
 
-static int join_client(int slot_number, int client_socket_fd);
+static int join_client(int server_socket_fd);
 
 //return value 0/-1
 int
@@ -70,10 +70,7 @@ TCP_server_start(const char * inaddr,
 					NULL);
 
 	while(1) {
-		int slot_number = get_free_client_slot();
-
-		if(slot_number >= 0)
-			join_client(slot_number,socket_fd);
+		join_client(socket_fd);
 	}
 
 	for(i=0;i<MAX_CLIENTS;i++) {
@@ -126,7 +123,7 @@ TCP_client_start(const char * server_ip_addr,
 		}
 	}
 
-	return 0;
+	return 0; 
 }
 
 
@@ -162,8 +159,9 @@ sigint_handler(int server_sock) {
 	close(server_sock);
 
 	unsigned int i = 0;
-	for(i=0;i<clients_count;i++) {
-		pthread_cancel(client_threads[i]);
+	for(i=0;i<MAX_CLIENTS;i++) {
+		if(client_fd[i] != -1)
+			pthread_cancel(client_threads[i]);
 	}
 
 	exit(0);
@@ -189,29 +187,41 @@ int get_free_client_slot() {
 	return result;
 }
 
-static int join_client(int slot_number, int client_socket_fd) {
-	struct sockaddr_in  client_addr;
+static int join_client(int server_socket_fd) {
+	struct sockaddr_in client_addr;
 	socklen_t client_addr_len = 0;
 
-	client_fd[slot_number] = accept(client_socket_fd,
+	int cur_client_fd = 0;
+
+	cur_client_fd = accept(server_socket_fd,
 			(struct sockaddr *)(&client_addr),
 			&client_addr_len);
 
-	if(client_fd[slot_number] < 0) {
+	if(cur_client_fd < 0) {
 		perror("Accept error!");
 		return -1;
 	}
 
-	printf("New client: %s:%u\n",
-			inet_ntoa(client_addr.sin_addr),
-			ntohs(client_addr.sin_port));
+	if(clients_count == MAX_CLIENTS) {
+		//const char message[] = "Not enought slots!";
+		//write(cur_client_fd,message,sizeof(message));
+		shutdown(cur_client_fd,SHUT_RDWR);
+		close(cur_client_fd);
+	} else {
+		int slot_number = get_free_client_slot();
 
-	pthread_create(&client_threads[slot_number], //pthread * thread
-			NULL, //const pthread_attr_t *attr
-			client_handler, //void *(*start_routine) (void * arg)
-			&client_fd[slot_number]); //void *arg
+		client_fd[slot_number] = cur_client_fd;
+		printf("New client: %s:%u\n",
+				inet_ntoa(client_addr.sin_addr),
+				ntohs(client_addr.sin_port));
 
-	clients_count++;
+		pthread_create(&client_threads[slot_number], //pthread * thread
+				NULL, //const pthread_attr_t *attr
+				client_handler, //void *(*start_routine) (void * arg)
+				&client_fd[slot_number]); //void *arg
+
+		clients_count++;
+	}
 
 	return 0;
 }
@@ -224,6 +234,7 @@ static void* clients_checker(void * arg) {
 					!pthread_tryjoin_np(client_threads[i],NULL)) {
 				printf("Client %d unjoined!\n",i);
 				client_fd[i] = -1;
+				clients_count--;
 			}
 		}
 
