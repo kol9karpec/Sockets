@@ -17,7 +17,8 @@ static void* clients_checker(void * arg);
 
 static int join_client(int server_socket_fd);
 
-//return value 0/-1
+static char * get_client_ip(int socket_fd);
+
 int
 TCP_server_start(const char * inaddr,
 					unsigned short int port) {
@@ -80,7 +81,6 @@ TCP_server_start(const char * inaddr,
 	return 0;
 }
 
-//return value - client's file descriptor
 int
 TCP_client_start(const char * server_ip_addr,
 				unsigned short int server_port) {
@@ -123,7 +123,7 @@ TCP_client_start(const char * server_ip_addr,
 		}
 	}
 
-	return 0; 
+	return 0;
 }
 
 
@@ -131,12 +131,10 @@ void *
 client_handler(void * arg) {
 	int client_fd = *((int*)(arg));
 	char buffer[DEF_BUFSIZE] = {0};
-	//memset(buffer,'\0',sizeof(buffer));
 	int n_of_bytes = 0;
 
 	while((n_of_bytes = read(client_fd,buffer,sizeof(buffer))) > 0) {
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,NULL);
-		//Handling buffer
 
 		pthread_mutex_lock(&output_lock);
 		printf("Submitted data: %s\n",buffer);
@@ -167,14 +165,16 @@ sigint_handler(int server_sock) {
 	exit(0);
 }
 
-static void set_def_client_fd() {
+static void
+set_def_client_fd() {
 	unsigned int i = 0;
 	for(;i<MAX_CLIENTS;i++)
 		client_fd[i] = -1;
 }
 
 
-int get_free_client_slot() {
+int
+get_free_client_slot() {
 	int result = -1;
 	int i = 0;
 
@@ -187,9 +187,10 @@ int get_free_client_slot() {
 	return result;
 }
 
-static int join_client(int server_socket_fd) {
+static int
+join_client(int server_socket_fd) {
 	struct sockaddr_in client_addr;
-	socklen_t client_addr_len = 0;
+	socklen_t client_addr_len = sizeof(client_addr);
 
 	int cur_client_fd = 0;
 
@@ -203,18 +204,19 @@ static int join_client(int server_socket_fd) {
 	}
 
 	if(clients_count == MAX_CLIENTS) {
-		//const char message[] = "Not enought slots!";
-		//write(cur_client_fd,message,sizeof(message));
-		shutdown(cur_client_fd,SHUT_RDWR);
+		//shutdown(cur_client_fd,SHUT_RDWR);
 		close(cur_client_fd);
+		printf("Server is busy!\n");
 	} else {
 		int slot_number = get_free_client_slot();
 
 		client_fd[slot_number] = cur_client_fd;
-		printf("New client: %s:%u\n",
+		/*printf("New client: %s:%u\n",
 				inet_ntoa(client_addr.sin_addr),
 				ntohs(client_addr.sin_port));
-
+				*/
+		printf("New client: %s\n",
+				get_client_ip(cur_client_fd));
 		pthread_create(&client_threads[slot_number], //pthread * thread
 				NULL, //const pthread_attr_t *attr
 				client_handler, //void *(*start_routine) (void * arg)
@@ -226,7 +228,8 @@ static int join_client(int server_socket_fd) {
 	return 0;
 }
 
-static void* clients_checker(void * arg) {
+static void*
+clients_checker(void * arg) {
 	unsigned int i = 0;
 	while(1) {
 		for(i=0;i<MAX_CLIENTS;i++) {
@@ -243,4 +246,16 @@ static void* clients_checker(void * arg) {
 	}
 
 	return NULL;
+}
+
+static char * get_client_ip(int socket_fd) {
+	char * result = (char*)(malloc(sizeof(char)*DEF_BUFSIZE));
+	struct sockaddr_in addr;
+	socklen_t addr_size = sizeof(struct sockaddr_in);
+	getpeername(socket_fd, (struct sockaddr *)&addr, &addr_size);
+	snprintf(result,DEF_BUFSIZE,"%s:%d",
+			inet_ntoa(addr.sin_addr),
+			ntohs(addr.sin_port));
+
+	return result;
 }
