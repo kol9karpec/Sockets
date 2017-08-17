@@ -19,24 +19,10 @@
 #define DEF_BUFSIZE 256
 #define MAX_CLIENTS 5
 
-/*
-extern pthread_t client_threads[MAX_CLIENTS];
-
-extern pthread_mutex_t output_lock;
-//pthread_mutex_init(&output_lock,NULL);
-
-extern volatile unsigned char clients_count;
-*/
-//return value 0/-1
 int UDP_server_start(const char * inaddr,
 					unsigned short int port);
 
-//return value - client's file descriptor
 int UDP_client_start(const char * server_ip_addr,
 				unsigned short int server_port);
-/*
-void* client_handler(void * arg);
 
-void sigint_handler(int server_sock);
-*/
 #endif //__UDP_SOCKETS_H__
