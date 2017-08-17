@@ -5,6 +5,9 @@ SERVER_OBJS = server.o
 CLIENT_OBJS = client.o
 COMMON_OBJS = ./src/tcp_sockets.o
 
+UDP_OBJS = ./src/udp_sockets.o
+UDP_HEADERS = ./include/udp_sockets.h
+
 HEADERS = ./include/tcp_sockets.h
 LDFLAGS = -pthread
 
@@ -25,4 +28,6 @@ message:
 
 $(HEADERS):
 
-.PHONY: clean all message
+udp_test_compile: $(UDP_OBJS) $(UDP_HEADERS)
+
+.PHONY: clean all message udp_test_compile
