@@ -19,15 +19,13 @@ static pthread_t client_threads[MAX_CLIENTS] = { 0 };
 static pthread_mutex_t output_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static pthread_mutex_t client_fd_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t clients_count_lock = PTHREAD_MUTEX_INITIALIZER;
+
 static unsigned char clients_count = 0;
 static int client_fd[MAX_CLIENTS];
 static int get_client_fd(const int index);
-static void set_client_fd(const int index, int data);
+static int get_client_fd_locked(const int index);
 
 static int get_free_client_slot();
-static void inc_clients_count();
-static void dec_clients_count();
 
 static pthread_t clients_checker_thread = 0;
 static void* clients_checker(void * arg);
@@ -77,6 +75,7 @@ TCP_server_start(const char * inaddr,
 	}
 
 	signal(SIGINT,sigint_handler);
+
 	if(pthread_mutex_init(&output_lock,NULL)) {
 		perror("pthread_mutex_init() failure");
 		close(socket_fd);
@@ -177,7 +176,7 @@ client_thread_handler(void * arg) {
 
 	while((n_of_bytes = read(client_fd,buffer,sizeof(buffer)-1)) > 0) {
 		pthread_mutex_lock(&output_lock);
-		printf("Submitted data: %*s\n",
+		printf("Submitted data: %.*s\n",
 				n_of_bytes,
 				buffer);
 		pthread_mutex_unlock(&output_lock);
@@ -235,12 +234,14 @@ join_client(int server_socket_fd) {
 		return -1;
 	}
 
+	printf("X\n");
 	if(clients_count == MAX_CLIENTS) {
 		write(cur_client_fd,"busy",DEF_BUFSIZE);
 		close(cur_client_fd);
 		//printf("Server is busy!\n");
 	} else {
 		int slot_number = get_free_client_slot();
+		printf("A\n");
 
 		if(slot_number < 0) {
 			perror("get_free_client_slot() failure");
@@ -255,19 +256,18 @@ join_client(int server_socket_fd) {
 				ntohs(client_addr.sin_port));
 				*/
 		char buffer[DEF_BUFSIZE];
-		get_client_ip(cur_client_fd,buffer);
-
-		if(buffer == NULL) {
+		if(get_client_ip(cur_client_fd, buffer) == NULL)
 			printf("Error printing client name!\n");
-		}
+		else
+			printf("New client: %s\n",buffer);
 
-		printf("New client: %s\n",buffer);
-
+		pthread_mutex_lock(&client_fd_lock);
 		pthread_create(&client_threads[slot_number],
 				NULL, /**< pthread attr */
 				client_thread_handler,
-				(void*)((intptr_t)get_client_fd(slot_number)));
-		inc_clients_count();
+				(void*)((intptr_t)get_client_fd_locked(slot_number)));
+		clients_count++;
+		pthread_mutex_lock(&client_fd_lock);
 	}
 
 	return 0;
@@ -278,12 +278,14 @@ clients_checker(void * arg) {
 	unsigned int i = 0;
 	while(1) {
 		for(i=0;i<MAX_CLIENTS;i++) {
-			if((get_client_fd(i) != -1) && \
+			pthread_mutex_lock(&client_fd_lock);
+			if((get_client_fd_locked(i) != -1) && \
 					!pthread_tryjoin_np(client_threads[i],NULL)) {
 				printf("Client %d unjoined!\n",i);
-				set_client_fd(i,-1);
-				dec_clients_count();
+				client_fd[i] = -1;
+				clients_count--;
 			}
+			pthread_mutex_unlock(&client_fd_lock);
 		}
 
 		sleep(1);
@@ -311,31 +313,17 @@ static char * get_client_ip(int socket_fd, char * buffer) {
 	return buffer;
 }
 
+/* Needs locking */
+static inline int get_client_fd_locked(const int index) {
+	return client_fd[index];
+}
 
 static int get_client_fd(const int index) {
 	int result;
 
 	pthread_mutex_lock(&client_fd_lock);
-	result = client_fd[index];
+	result = get_client_fd_locked(index);
 	pthread_mutex_unlock(&client_fd_lock);
-	
+
 	return result;
-}
-
-static inline void inc_clients_count() {
-	pthread_mutex_lock(&clients_count_lock);
-	clients_count++;
-	pthread_mutex_unlock(&clients_count_lock);
-}
-
-static inline void dec_clients_count() {
-	pthread_mutex_lock(&clients_count_lock);
-	clients_count--;
-	pthread_mutex_unlock(&clients_count_lock);
-}
-
-static void set_client_fd(const int index, int data) {
-	pthread_mutex_lock(&client_fd_lock);
-	client_fd[index] = data;
-	pthread_mutex_unlock(&client_fd_lock);
 }
